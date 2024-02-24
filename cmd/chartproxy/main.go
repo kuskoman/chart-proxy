@@ -16,17 +16,29 @@ func main() {
 
 	fatalErrorChan := make(chan error)
 
-	configManager := config.NewConfigManager(*configFile, *watch, fatalErrorChan)
+	configManager, err := config.NewConfigManager(*configFile, fatalErrorChan)
+	if err != nil {
+		slog.Error("error creating configuration manager", "error", err)
+		panic(err)
+	}
+
 	configManager.RegisterReloadHook(logging.SetupLogging)
 
 	serverManager := server.NewServerManager()
 
 	configManager.RegisterReloadHook(serverManager.StartOrRestartServer)
 
-	err := configManager.LoadConfig()
-	if err != nil {
+	if err := configManager.LoadConfig(); err != nil {
 		slog.Error("error loading configuration", "error", err)
 		panic(err)
+	}
+
+	if *watch {
+		err = configManager.WatchConfig()
+		if err != nil {
+			slog.Error("error watching configuration", "error", err)
+			panic(err)
+		}
 	}
 
 	for range fatalErrorChan {

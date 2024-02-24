@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	dario.cat/mergo v1.0.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/hashicorp/hcl/v2 v2.19.1
 	github.com/prometheus/client_golang v1.18.0
 )
