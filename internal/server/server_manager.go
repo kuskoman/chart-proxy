@@ -30,8 +30,6 @@ func (manager *ServerManager) StartOrRestartServer(cfg *config.Config, errorChan
 		return
 	}
 
-	manager.server = newAppServer(cfg)
-
 	manager.startServer(cfg, errorChan)
 }
 
@@ -43,6 +41,7 @@ func (manager *ServerManager) startServer(cfg *config.Config, errorChan chan err
 		if err := manager.server.ListenAndServe(); err != http.ErrServerClosed {
 			errorChan <- err
 		}
+		slog.Debug("server finished work")
 	}()
 }
 
