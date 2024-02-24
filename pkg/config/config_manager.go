@@ -7,15 +7,19 @@ import (
 )
 
 type ConfigManager struct {
-	location string
-	config   *Config
-	mutex    sync.RWMutex
+	location    string
+	config      *Config
+	mutex       sync.RWMutex
+	reloadHooks []ReloadHook
 }
 
-func NewConfigManager(location string) *ConfigManager {
+type ReloadHook func(config *Config) error
+
+func NewConfigManager(location string, watch bool) *ConfigManager {
 	return &ConfigManager{
-		location: location,
-		mutex:    sync.RWMutex{},
+		location:    location,
+		mutex:       sync.RWMutex{},
+		reloadHooks: []ReloadHook{},
 	}
 }
 
@@ -47,10 +51,15 @@ func (cm *ConfigManager) LoadConfig() error {
 	return nil
 }
 
-func (cm *ConfigManager) handleReloadHooks() {
-	config := cm.GetConfig()
+// RegisterReloadHook registers a function that will be called after the configuration is reloaded.
+func (cm *ConfigManager) RegisterReloadHook(hook ReloadHook) {
+	cm.reloadHooks = append(cm.reloadHooks, hook)
+}
 
-	setupSlog(config.Logging)
+func (cm *ConfigManager) handleReloadHooks() {
+	for _, hook := range cm.reloadHooks {
+		hook(cm.config)
+	}
 }
 
 func (cm *ConfigManager) readConfig() (*Config, error) {

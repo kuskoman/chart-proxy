@@ -1,20 +1,26 @@
-package config
+package logging
 
 import (
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/kuskoman/chart-proxy/pkg/config"
 )
 
 // ErrUnknownLogFormat is returned when the log format is not recognized by the slog package
 var ErrUnknownLogFormat = fmt.Errorf("unknown log format")
 
-func setupSlog(loggingConfig *LoggingConfig) (*slog.Logger, error) {
+// SetupSlog configures the slog package with the given configuration.
+// The function is designed to work as a reload hook for the config manager.
+func SetupSlog(config *config.Config) error {
+	loggingConfig := config.Logging
+
 	level := slog.LevelInfo
 	err := level.UnmarshalText([]byte(loggingConfig.Level))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var handler slog.Handler
@@ -28,8 +34,11 @@ func setupSlog(loggingConfig *LoggingConfig) (*slog.Logger, error) {
 			Level: level,
 		})
 	default:
-		return nil, ErrUnknownLogFormat
+		return ErrUnknownLogFormat
 	}
 
-	return slog.New(handler), nil
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	return nil
 }
