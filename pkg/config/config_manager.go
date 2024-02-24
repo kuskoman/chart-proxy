@@ -1,15 +1,21 @@
 package config
 
-import "github.com/hashicorp/hcl/v2/hclsimple"
+import (
+	"sync"
+
+	"github.com/hashicorp/hcl/v2/hclsimple"
+)
 
 type ConfigManager struct {
 	location string
 	config   *Config
+	mutex    sync.RWMutex
 }
 
 func NewConfigManager(location string) *ConfigManager {
 	return &ConfigManager{
 		location: location,
+		mutex:    sync.RWMutex{},
 	}
 }
 
@@ -31,9 +37,12 @@ func (cm *ConfigManager) LoadConfig() error {
 		return err
 	}
 
-	cm.config = mergedConfig
+	cm.mutex.Lock()
 
+	cm.config = mergedConfig
 	cm.handleReloadHooks()
+
+	cm.mutex.Unlock()
 
 	return nil
 }
