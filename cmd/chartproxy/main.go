@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log/slog"
 
 	"github.com/kuskoman/chart-proxy/internal/logging"
 	"github.com/kuskoman/chart-proxy/internal/server"
@@ -14,19 +14,24 @@ func main() {
 	configFile := flag.String("config", "config.hcl", "Path to the configuration file")
 	flag.Parse()
 
-	configManager := config.NewConfigManager(*configFile, *watch)
-	configManager.RegisterReloadHook(logging.SetupSlog)
+	fatalErrorChan := make(chan error)
+
+	configManager := config.NewConfigManager(*configFile, *watch, fatalErrorChan)
+	configManager.RegisterReloadHook(logging.SetupLogging)
 
 	serverManager := server.NewServerManager()
 
 	configManager.RegisterReloadHook(serverManager.StartOrRestartServer)
 
 	err := configManager.LoadConfig()
-
 	if err != nil {
+		slog.Error("error loading configuration", "error", err)
 		panic(err)
 	}
 
-	config := configManager.GetConfig()
-	fmt.Printf("%+v\n", config)
+	for range fatalErrorChan {
+		err := <-fatalErrorChan
+		slog.Error("fatal error", "error", err)
+		panic(err)
+	}
 }

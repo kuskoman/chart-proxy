@@ -7,19 +7,21 @@ import (
 )
 
 type ConfigManager struct {
-	location    string
-	config      *Config
-	mutex       sync.RWMutex
-	reloadHooks []ReloadHook
+	location        string
+	config          *Config
+	mutex           sync.RWMutex
+	reloadHooks     []ReloadHook
+	reloadErrorChan chan error
 }
 
-type ReloadHook func(config *Config) error
+type ReloadHook func(config *Config, errorChan chan error)
 
-func NewConfigManager(location string, watch bool) *ConfigManager {
+func NewConfigManager(location string, watch bool, reloadErrorChan chan error) *ConfigManager {
 	return &ConfigManager{
-		location:    location,
-		mutex:       sync.RWMutex{},
-		reloadHooks: []ReloadHook{},
+		location:        location,
+		mutex:           sync.RWMutex{},
+		reloadHooks:     []ReloadHook{},
+		reloadErrorChan: reloadErrorChan,
 	}
 }
 
@@ -42,11 +44,10 @@ func (cm *ConfigManager) LoadConfig() error {
 	}
 
 	cm.mutex.Lock()
+	defer cm.mutex.Unlock()
 
 	cm.config = mergedConfig
 	cm.handleReloadHooks()
-
-	cm.mutex.Unlock()
 
 	return nil
 }
@@ -58,7 +59,7 @@ func (cm *ConfigManager) RegisterReloadHook(hook ReloadHook) {
 
 func (cm *ConfigManager) handleReloadHooks() {
 	for _, hook := range cm.reloadHooks {
-		hook(cm.config)
+		hook(cm.config, cm.reloadErrorChan)
 	}
 }
 

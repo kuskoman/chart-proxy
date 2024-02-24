@@ -13,10 +13,10 @@ func mergeConfigs(configs ...*Config) (*Config, error) {
 	mappingConfigs := make([][]Mapping, 0, len(configs))
 
 	for _, config := range configs {
-		serverConfigs = append(serverConfigs, *config.Server)
-		loggingConfigs = append(loggingConfigs, *config.Logging)
-		aliaseConfigs = append(aliaseConfigs, *config.Aliases)
-		mappingConfigs = append(mappingConfigs, *config.Mappings)
+		serverConfigs = append(serverConfigs, config.Server)
+		loggingConfigs = append(loggingConfigs, config.Logging)
+		aliaseConfigs = append(aliaseConfigs, config.Aliases)
+		mappingConfigs = append(mappingConfigs, config.Mappings)
 	}
 
 	mergedServerConfig, err := mergeServerConfigs(serverConfigs...)
@@ -31,10 +31,10 @@ func mergeConfigs(configs ...*Config) (*Config, error) {
 	mergedMappings := mergeMappings(mappingConfigs...)
 
 	mergedConfig := &Config{
-		Server:   mergedServerConfig,
-		Logging:  mergedLoggingConfig,
-		Aliases:  mergedAliases,
-		Mappings: mergedMappings,
+		Server:   *mergedServerConfig,
+		Logging:  *mergedLoggingConfig,
+		Aliases:  *mergedAliases,
+		Mappings: *mergedMappings,
 	}
 
 	return mergedConfig, nil

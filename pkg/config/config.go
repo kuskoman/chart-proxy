@@ -1,10 +1,10 @@
 package config
 
 type Config struct {
-	Server   *ServerConfig      `hcl:"server,block"`
-	Logging  *LoggingConfig     `hcl:"logging,block"`
-	Aliases  *[]RepositoryAlias `hcl:"repository_alias,block"`
-	Mappings *[]Mapping         `hcl:"mapping,block"`
+	Server   ServerConfig      `hcl:"server,block"`
+	Logging  LoggingConfig     `hcl:"logging,block"`
+	Aliases  []RepositoryAlias `hcl:"repository_alias,block"`
+	Mappings []Mapping         `hcl:"mapping,block"`
 }
 
 type ServerConfig struct {

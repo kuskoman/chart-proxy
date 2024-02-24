@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -22,10 +21,32 @@ func NewServerManager() *ServerManager {
 	}
 }
 
-func (manager *ServerManager) StartOrRestartServer(cfg *config.Config) error {
+func (manager *ServerManager) StartOrRestartServer(cfg *config.Config, errorChan chan error) {
 	manager.mutex.Lock()
 	defer manager.mutex.Unlock()
 
+	if err := manager.shutdownIfRunning(); err != nil {
+		errorChan <- err
+		return
+	}
+
+	manager.server = newAppServer(cfg)
+
+	manager.startServer(cfg, errorChan)
+}
+
+func (manager *ServerManager) startServer(cfg *config.Config, errorChan chan error) {
+	manager.server = newAppServer(cfg)
+
+	go func() {
+		slog.Info("starting server on", "address", manager.server.Addr)
+		if err := manager.server.ListenAndServe(); err != http.ErrServerClosed {
+			errorChan <- err
+		}
+	}()
+}
+
+func (manager *ServerManager) shutdownIfRunning() error {
 	if manager.server != nil {
 		slog.Info("shutting down server...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -34,17 +55,8 @@ func (manager *ServerManager) StartOrRestartServer(cfg *config.Config) error {
 		if err := manager.server.Shutdown(ctx); err != nil {
 			return err
 		}
+		slog.Info("server shut down")
 	}
-
-	manager.server = newAppServer(cfg)
-
-	go func() {
-		slog.Info("starting server on", "address", manager.server.Addr)
-		if err := manager.server.ListenAndServe(); err != http.ErrServerClosed {
-			slog.Error("error starting server", "error", err)
-			os.Exit(1)
-		}
-	}()
 
 	return nil
 }

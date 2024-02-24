@@ -12,11 +12,16 @@ import (
 // ErrUnknownLogFormat is returned when the log format is not recognized by the slog package
 var ErrUnknownLogFormat = fmt.Errorf("unknown log format")
 
-// SetupSlog configures the slog package with the given configuration.
-// The function is designed to work as a reload hook for the config manager.
-func SetupSlog(config *config.Config) error {
-	loggingConfig := config.Logging
+// SetupLogin configures the logging for the application based on the configuration.
+// Can be called multiple times to reload the logging configuration.
+func SetupLogging(cfg *config.Config, errChan chan error) {
+	err := setupSlog(&cfg.Logging)
+	if err != nil {
+		errChan <- err
+	}
+}
 
+func setupSlog(loggingConfig *config.LoggingConfig) error {
 	level := slog.LevelInfo
 	err := level.UnmarshalText([]byte(loggingConfig.Level))
 	if err != nil {
@@ -39,6 +44,8 @@ func SetupSlog(config *config.Config) error {
 
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
+
+	slog.Debug("logging configured", "level", level, "format", loggingConfig.Format)
 
 	return nil
 }

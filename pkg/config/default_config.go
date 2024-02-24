@@ -2,15 +2,15 @@ package config
 
 func getDefaultConfig() *Config {
 	return &Config{
-		Server: &ServerConfig{
+		Server: ServerConfig{
 			Port: 8080,
 			Host: "localhost",
 		},
-		Logging: &LoggingConfig{
+		Logging: LoggingConfig{
 			Level:  "info",
 			Format: "text",
 		},
-		Aliases:  &[]RepositoryAlias{},
-		Mappings: &[]Mapping{},
+		Aliases:  []RepositoryAlias{},
+		Mappings: []Mapping{},
 	}
 }

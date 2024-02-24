@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/kuskoman/chart-proxy/pkg/config"
@@ -9,6 +10,8 @@ import (
 )
 
 func newAppServer(config *config.Config) *http.Server {
+	slog.Info("creating new server", "host", config.Server.Host, "port", config.Server.Port)
+
 	mux := http.NewServeMux()
 
 	mux.Handle("/metrics", promhttp.Handler())
