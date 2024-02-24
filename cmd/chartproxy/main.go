@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kuskoman/chart-proxy/internal/logging"
+	"github.com/kuskoman/chart-proxy/internal/server"
 	"github.com/kuskoman/chart-proxy/pkg/config"
 )
 
@@ -15,6 +16,10 @@ func main() {
 
 	configManager := config.NewConfigManager(*configFile, *watch)
 	configManager.RegisterReloadHook(logging.SetupSlog)
+
+	serverManager := server.NewServerManager()
+
+	configManager.RegisterReloadHook(serverManager.StartOrRestartServer)
 
 	err := configManager.LoadConfig()
 
