@@ -34,11 +34,13 @@ func main() {
 	}
 
 	if *watch {
-		err = configManager.WatchConfig()
-		if err != nil {
-			slog.Error("error watching configuration", "error", err)
-			panic(err)
-		}
+		go func() {
+			err = configManager.WatchConfig()
+			if err != nil {
+				slog.Error("error watching configuration", "error", err)
+				panic(err)
+			}
+		}()
 	}
 
 	for range fatalErrorChan {

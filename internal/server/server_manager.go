@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -11,8 +12,9 @@ import (
 )
 
 type ServerManager struct {
-	server *http.Server
-	mutex  *sync.RWMutex
+	server         *http.Server
+	mutex          *sync.RWMutex
+	previousConfig *config.Config
 }
 
 func NewServerManager() *ServerManager {
@@ -25,6 +27,11 @@ func (manager *ServerManager) StartOrRestartServer(cfg *config.Config, errorChan
 	manager.mutex.Lock()
 	defer manager.mutex.Unlock()
 
+	if reflect.DeepEqual(manager.previousConfig, cfg) {
+		slog.Debug("config did not change, not restarting server")
+		return
+	}
+
 	if err := manager.shutdownIfRunning(); err != nil {
 		errorChan <- err
 		return
@@ -35,6 +42,7 @@ func (manager *ServerManager) StartOrRestartServer(cfg *config.Config, errorChan
 
 func (manager *ServerManager) startServer(cfg *config.Config, errorChan chan error) {
 	manager.server = newAppServer(cfg)
+	manager.previousConfig = cfg
 
 	go func() {
 		slog.Info("starting server on", "address", manager.server.Addr)
