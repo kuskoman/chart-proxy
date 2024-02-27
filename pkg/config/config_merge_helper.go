@@ -1,107 +1,76 @@
 package config
 
 import (
-	"log/slog"
-
 	"dario.cat/mergo"
 )
 
 func mergeConfigs(configs ...*Config) (*Config, error) {
-	serverConfigs := make([]ServerConfig, 0, len(configs))
-	loggingConfigs := make([]LoggingConfig, 0, len(configs))
-	aliaseConfigs := make([][]RepositoryAlias, 0, len(configs))
-	mappingConfigs := make([][]Mapping, 0, len(configs))
+	mergedAliases, mergedMappings := []RepositoryAlias{}, []Mapping{}
 
-	for _, config := range configs {
-		serverConfigs = append(serverConfigs, config.Server)
-		loggingConfigs = append(loggingConfigs, config.Logging)
-		aliaseConfigs = append(aliaseConfigs, config.Aliases)
-		mappingConfigs = append(mappingConfigs, config.Mappings)
-	}
+	extractServerConfig := func(c *Config) ServerConfig { return c.Server }
+	extractLoggingConfig := func(c *Config) LoggingConfig { return c.Logging }
 
-	mergedServerConfig, err := mergeServerConfigs(serverConfigs...)
+	extractedServerConfig := extractConfigs(configs, extractServerConfig)
+	extractedLoggingConfig := extractConfigs(configs, extractLoggingConfig)
+
+	mergedServerConfig, err := merge(extractedServerConfig...)
 	if err != nil {
 		return nil, err
 	}
-	mergedLoggingConfig, err := mergeLoggingConfigs(loggingConfigs...)
+
+	mergedLoggingConfig, err := merge(extractedLoggingConfig...)
 	if err != nil {
 		return nil, err
 	}
-	mergedAliases := mergeRepositoryAliases(aliaseConfigs...)
-	mergedMappings := mergeMappings(mappingConfigs...)
 
-	mergedConfig := &Config{
+	mergeSlices(&mergedAliases, extractSliceConfigs(configs, func(c *Config) []RepositoryAlias { return c.Aliases })...)
+	mergeSlices(&mergedMappings, extractSliceConfigs(configs, func(c *Config) []Mapping { return c.Mappings })...)
+
+	return &Config{
 		Server:   *mergedServerConfig,
 		Logging:  *mergedLoggingConfig,
-		Aliases:  *mergedAliases,
-		Mappings: *mergedMappings,
-	}
-
-	return mergedConfig, nil
+		Aliases:  mergedAliases,
+		Mappings: mergedMappings,
+	}, nil
 }
 
-func mergeServerConfigs(configs ...ServerConfig) (*ServerConfig, error) {
-	mergedConfig := ServerConfig{}
+func merge[T any](configs ...T) (*T, error) {
+	var mergedConfig T
 
 	for _, config := range configs {
-		err := mergo.Merge(&mergedConfig, config, mergo.WithOverride)
-		if err != nil {
+		if err := mergo.Merge(mergedConfig, config, mergo.WithOverride); err != nil {
 			return nil, err
 		}
 	}
-
 	return &mergedConfig, nil
 }
 
-func mergeLoggingConfigs(configs ...LoggingConfig) (*LoggingConfig, error) {
-	mergedConfig := LoggingConfig{}
+func mergeSlices[T comparable](mergedSlice *[]T, slices ...[]T) {
+	uniqueMap := make(map[T]struct{})
 
+	for _, slice := range slices {
+		for _, item := range slice {
+			uniqueMap[item] = struct{}{}
+		}
+	}
+
+	for item := range uniqueMap {
+		*mergedSlice = append(*mergedSlice, item)
+	}
+}
+
+func extractConfigs[T any](configs []*Config, extractor func(*Config) T) []T {
+	result := make([]T, 0, len(configs))
 	for _, config := range configs {
-		err := mergo.Merge(&mergedConfig, config, mergo.WithOverride)
-		if err != nil {
-			return nil, err
-		}
+		result = append(result, extractor(config))
 	}
-
-	return &mergedConfig, nil
+	return result
 }
 
-func mergeRepositoryAliases(aliases ...[]RepositoryAlias) *[]RepositoryAlias {
-	repositoryAliasesMap := make(map[string]RepositoryAlias)
-
-	for _, aliasList := range aliases {
-		for _, alias := range aliasList {
-			if _, exists := repositoryAliasesMap[alias.Name]; exists {
-				slog.Warn("repository alias already exists, overriding", "alias", alias.Name, "old_url", repositoryAliasesMap[alias.Name].URL, "new_url", alias.URL)
-			}
-			repositoryAliasesMap[alias.Name] = alias
-		}
+func extractSliceConfigs[T any](configs []*Config, extractor func(*Config) []T) [][]T {
+	result := make([][]T, 0, len(configs))
+	for _, config := range configs {
+		result = append(result, extractor(config))
 	}
-
-	mergedAliases := make([]RepositoryAlias, 0, len(repositoryAliasesMap))
-	for _, alias := range repositoryAliasesMap {
-		mergedAliases = append(mergedAliases, alias)
-	}
-
-	return &mergedAliases
-}
-
-func mergeMappings(mappings ...[]Mapping) *[]Mapping {
-	mappingsMap := make(map[string]Mapping)
-
-	for _, mappingList := range mappings {
-		for _, mapping := range mappingList {
-			if _, exists := mappingsMap[mapping.Name]; exists {
-				slog.Warn("mapping already exists, overriding", "mapping", mapping.Name, "old_upstream", mappingsMap[mapping.Name].Upstream, "new_upstream", mapping.Upstream, "old_downstream", mappingsMap[mapping.Name].Downstream, "new_downstream", mapping.Downstream)
-			}
-			mappingsMap[mapping.Name] = mapping
-		}
-	}
-
-	mergedMappings := make([]Mapping, 0, len(mappingsMap))
-	for _, mapping := range mappingsMap {
-		mergedMappings = append(mergedMappings, mapping)
-	}
-
-	return &mergedMappings
+	return result
 }
